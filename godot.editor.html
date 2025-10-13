@@ -345,8 +345,8 @@ window.addEventListener('load', () => {
 	// Auto-start: preload template project and launch editor without user input.
 	// Hide the welcome modal for a seamless start when features are available.
 	// Fetch template project zip and start the editor behind the loading screen.
-	fetch('tutor.zip').then(function (resp) {
-		if (!resp.ok) { throw new Error('Failed to fetch tutor.zip'); }
+	fetch('template.zip').then(function (resp) {
+		if (!resp.ok) { throw new Error('Failed to fetch template.zip'); }
 		return resp.arrayBuffer();
 	}).then(function (zipBuf) {
 		startEditor(zipBuf);
