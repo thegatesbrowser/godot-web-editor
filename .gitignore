@@ -1,0 +1,124 @@
+# --- Node / JavaScript ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+build/
+.output/
+out/
+
+# Bundler / tool caches
+.cache/
+.parcel-cache/
+.vite/
+.esbuild/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.eslintcache
+
+# Framework outputs (safe if not used)
+.next/
+.nuxt/
+.svelte-kit/
+storybook-static/
+coverage/
+.nyc_output/
+
+# E2E / testing artifacts
+cypress/screenshots/
+cypress/videos/
+playwright-report/
+test-results/
+.vitest/
+
+# Env files (keep examples tracked)
+.env
+.env.*
+!.env.example
+
+# Logs & temp
+logs/
+*.log
+*.log.*
+*.tmp
+tmp/
+temp/
+
+# --- Python (for serve.py tooling) ---
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Python envs & build artifacts
+.venv/
+venv/
+env/
+.envrc
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Godot (safe defaults; does not ignore .wasm assets) ---
+.import/
+.godot/
+.mono/
+
+# --- Editors / IDE ---
+.vscode/
+.idea/
+.history/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Misc ---
+*.orig
+*.rej
+*.bak
+
+# Binaries / archives
+*.zip
+*.tar
+*.tgz
+*.tar.gz
+*.7z
+*.rar
+
+*.wasm
