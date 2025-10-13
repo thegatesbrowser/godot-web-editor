@@ -408,6 +408,30 @@ window.addEventListener('load', () => {
 		document.getElementById('welcome-modal').style.display = 'block';
 		document.getElementById('welcome-modal-dismiss').focus();
 	}
+
+	// Auto-start: preload template project and launch editor without user input.
+	// Hide the welcome modal for a seamless start when features are available.
+	if (!missing.length) {
+		// Ensure the modal won't be shown again and close it if currently visible.
+		localStorage.setItem('welcomeModalDismissed', 'true');
+		try {
+			if (typeof closeWelcomeModal === 'function') {
+				closeWelcomeModal(true);
+			}
+		} catch (e) {}
+		// Fetch template project zip and start the editor behind the loading screen.
+		fetch('tutor.zip').then(function (resp) {
+			if (!resp.ok) {
+				throw new Error('Failed to fetch tutor.zip');
+			}
+			return resp.arrayBuffer();
+		}).then(function (zipBuf) {
+			startEditor(zipBuf);
+		}).catch(function (e) {
+			console.error('Failed to auto-start with template project:', e);
+			// Leave the default UI if auto-start fails.
+		});
+	}
 });
 
 function closeWelcomeModal(dontShowAgain) { // eslint-disable-line no-unused-vars
@@ -572,6 +596,99 @@ function startEditor(zip) {
 		}
 	}
 
+	// Minimal ZIP extractor using the central directory and DecompressionStream (deflate-raw).
+	// Returns the absolute project root path inside the virtual FS after extraction.
+	function extractZipToFS(buffer, destRoot) {
+		const dv = new DataView(buffer);
+		const u8 = new Uint8Array(buffer);
+		const sigEOCD = 0x06054b50;
+		const sigCDH = 0x02014b50;
+		const sigLFH = 0x04034b50;
+		const td = new TextDecoder('utf-8');
+
+		function findEOCD() {
+			const minEOCDSize = 22;
+			const maxComment = 65535;
+			const start = Math.max(0, u8.length - (minEOCDSize + maxComment));
+			for (let i = u8.length - minEOCDSize; i >= start; i--) {
+				if (dv.getUint32(i, true) === sigEOCD) {
+					return i;
+				}
+			}
+			throw new Error('ZIP: End of central directory not found');
+		}
+
+		function decodeName(off, len) {
+			return td.decode(u8.subarray(off, off + len));
+		}
+
+		async function inflateRaw(bytes) {
+			// Stored (no compression) fast path
+			if (bytes == null) return new Uint8Array();
+			// Use DecompressionStream for raw deflate
+			const ds = new DecompressionStream('deflate-raw');
+			const stream = new Blob([bytes]).stream().pipeThrough(ds);
+			const ab = await new Response(stream).arrayBuffer();
+			return new Uint8Array(ab);
+		}
+
+		const eocd = findEOCD();
+		const cdOffset = dv.getUint32(eocd + 16, true);
+		let p = cdOffset;
+		/** @type {Array<Promise<{name:string,data:Uint8Array}>>} */
+		const filePromises = [];
+		while (p < u8.length && dv.getUint32(p, true) === sigCDH) {
+			const compMethod = dv.getUint16(p + 10, true);
+			const compSize = dv.getUint32(p + 20, true);
+			const nameLen = dv.getUint16(p + 28, true);
+			const extraLen = dv.getUint16(p + 30, true);
+			const commentLen = dv.getUint16(p + 32, true);
+			const relOff = dv.getUint32(p + 42, true);
+			const name = decodeName(p + 46, nameLen);
+			// Advance to next central directory entry
+			p += 46 + nameLen + extraLen + commentLen;
+			// Skip directories
+			if (name.endsWith('/')) {
+				continue;
+			}
+			// Locate local file header to find data start
+			if (dv.getUint32(relOff, true) !== sigLFH) {
+				throw new Error('ZIP: Local file header not found');
+			}
+			const lfNameLen = dv.getUint16(relOff + 26, true);
+			const lfExtraLen = dv.getUint16(relOff + 28, true);
+			const dataStart = relOff + 30 + lfNameLen + lfExtraLen;
+			const compBytes = u8.subarray(dataStart, dataStart + compSize);
+			if (compMethod === 0) {
+				// Stored
+				filePromises.push(Promise.resolve({ name: name, data: new Uint8Array(compBytes) }));
+			} else if (compMethod === 8) {
+				filePromises.push(inflateRaw(compBytes).then((data) => ({ name: name, data: data })));
+			} else {
+				throw new Error('ZIP: Unsupported compression method ' + compMethod);
+			}
+		}
+		return Promise.all(filePromises).then(function (entries) {
+			// Copy files into FS
+			entries.forEach(function (entry) {
+				editor.copyToFS(destRoot + '/' + entry.name, entry.data);
+			});
+			// Determine project root by locating project.godot
+			let projectRoot = null;
+			for (const entry of entries) {
+				if (entry.name === 'project.godot' || entry.name.endsWith('/project.godot')) {
+					const idx = entry.name.lastIndexOf('/');
+					projectRoot = (idx === -1) ? destRoot : (destRoot + '/' + entry.name.slice(0, idx));
+					break;
+				}
+			}
+			if (!projectRoot) {
+				throw new Error('ZIP: project.godot not found in template');
+			}
+			return projectRoot;
+		});
+	}
+
 	setStatusMode = function (mode) {
 		if (statusMode === mode || !initializing) {
 			return;
@@ -727,8 +844,9 @@ function startEditor(zip) {
 	} else {
 		setStatusMode('indeterminate');
 		editor.init('godot.editor').then(function () {
+			let projectRootPromise = Promise.resolve(null);
 			if (zip) {
-				editor.copyToFS('/tmp/preload.zip', zip);
+				projectRootPromise = extractZipToFS(zip, '/home/web_user/autoload');
 			}
 			try {
 				// Avoid user creating project in the persistent root folder.
@@ -736,17 +854,19 @@ function startEditor(zip) {
 			} catch (e) {
 				// File exists
 			}
-			selectVideoMode();
-			showTab('editor');
-			setLoaderEnabled(false);
-			const args = ['--project-manager', '--single-window'];
-			if (video_driver) {
-				args.push('--rendering-driver', video_driver);
-			}
-			editor.start({ 'args': args, 'persistentDrops': true }).then(function () {
-				setStatusMode('hidden');
-				initializing = false;
-			});
+			projectRootPromise.then(function (projectRoot) {
+				selectVideoMode();
+				showTab('editor');
+				setLoaderEnabled(false);
+				const args = projectRoot ? ['--editor', '--path', projectRoot, '--single-window'] : ['--project-manager', '--single-window'];
+				if (video_driver) {
+					args.push('--rendering-driver', video_driver);
+				}
+				editor.start({ 'args': args, 'persistentDrops': !projectRoot }).then(function () {
+					setStatusMode('hidden');
+					initializing = false;
+				});
+			}).catch(displayFailureNotice);
 		}).catch(displayFailureNotice);
 	}
 }
