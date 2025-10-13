@@ -33,6 +33,11 @@
 	position: relative;
 }
 
+html,
+body {
+	height: 100%;
+}
+
 body {
 	touch-action: none;
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -42,6 +47,8 @@ body {
 	text-align: center;
 	background-color: #333b4f;
 	overflow: hidden;
+	display: flex;
+	flex-direction: column;
 }
 
 a {
@@ -157,128 +164,121 @@ a:active {
 
 /* Status display */
 
+#tabs {
+	position: relative;
+	height: 100%;
+	width: 100%;
+	flex: 1;
+}
+
+#tab-status {
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	width: 100%;
+	height: 100%;
+	background: transparent;
+}
+
 #status {
 	position: absolute;
 	left: 0;
 	top: 0;
 	right: 0;
 	bottom: 0;
+	width: 100%;
+	height: 100%;
 	display: flex;
+	flex-direction: column;
 	justify-content: center;
 	align-items: center;
-	/* don't consume click events - make children visible explicitly */
-	visibility: hidden;
+	gap: 1.25rem;
+	padding: 2rem;
+	box-sizing: border-box;
+	pointer-events: none;
 }
 
 #status-progress {
-	width: 366px;
-	height: 7px;
-	background-color: #38363A;
-	border: 1px solid #444246;
-	padding: 1px;
-	box-shadow: 0 0 2px 1px #1B1C22;
-	border-radius: 2px;
+	width: min(520px, 85vw);
+	border-radius: 12px;
+	padding: 1.25rem 1.5rem;
+	background: linear-gradient(180deg, rgba(32,37,49,0.95) 0%, rgba(24,29,42,0.92) 100%);
+	box-shadow: 0 12px 40px rgba(8, 10, 20, 0.55);
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
 	visibility: visible;
+	pointer-events: auto;
 }
 
-@media only screen and (orientation:portrait) {
-	#status-progress {
-		width: 61.8%;
-	}
+#status-progress-label {
+	font-size: 1.05rem;
+	font-weight: 600;
+	letter-spacing: 0.015em;
+	color: #f3f5ff;
+	text-transform: uppercase;
+	opacity: 0.9;
+}
+
+#status-progress-bar {
+	width: 100%;
+	height: 1rem;
+	background: linear-gradient(180deg, rgba(14,16,24,0.95), rgba(24,27,38,0.9));
+	border: 1px solid rgba(98, 121, 178, 0.55);
+	border-radius: 999px;
+	box-shadow: inset 0 3px 9px rgba(0,0,0,0.45);
+	overflow: hidden;
 }
 
 #status-progress-inner {
 	height: 100%;
 	width: 0;
-	box-sizing: border-box;
-	transition: width 0.5s linear;
-	background-color: #202020;
-	border: 1px solid #222223;
-	box-shadow: 0 0 1px 1px #27282E;
-	border-radius: 3px;
+	transition: width 0.25s ease-out;
+	background: linear-gradient(90deg, #4b94ff 0%, #74d4ff 50%, #4b94ff 100%);
+	filter: drop-shadow(0 0 6px rgba(88, 169, 255, 0.45));
 }
 
-#status-indeterminate {
-	visibility: visible;
-	position: relative;
+#status-progress-inner.indeterminate {
+	width: 32%;
+	min-width: 3.5rem;
+	animation: status-progress-indeterminate 1.2s ease-in-out infinite alternate;
+	transition: none;
 }
 
-#status-indeterminate > div {
-	width: 4.5px;
-	height: 0;
-	border-style: solid;
-	border-width: 9px 3px 0 3px;
-	border-color: #2b2b2b transparent transparent transparent;
-	transform-origin: center 21px;
-	position: absolute;
+@keyframes status-progress-indeterminate {
+	0% { transform: translateX(-45%); }
+	50% { transform: translateX(0%); }
+	100% { transform: translateX(45%); }
 }
 
-#status-indeterminate > div:nth-child(1) { transform: rotate( 22.5deg); }
-#status-indeterminate > div:nth-child(2) { transform: rotate( 67.5deg); }
-#status-indeterminate > div:nth-child(3) { transform: rotate(112.5deg); }
-#status-indeterminate > div:nth-child(4) { transform: rotate(157.5deg); }
-#status-indeterminate > div:nth-child(5) { transform: rotate(202.5deg); }
-#status-indeterminate > div:nth-child(6) { transform: rotate(247.5deg); }
-#status-indeterminate > div:nth-child(7) { transform: rotate(292.5deg); }
-#status-indeterminate > div:nth-child(8) { transform: rotate(337.5deg); }
+#status-log {
+	width: min(520px, 85vw);
+	min-height: 2.5rem;
+	max-height: 18vh;
+	overflow-y: auto;
+	padding: 0.9rem 1.1rem;
+	border-radius: 10px;
+	background: rgba(20, 24, 32, 0.9);
+	box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+	border: 1px solid rgba(72, 88, 128, 0.45);
+	color: #cfd7ff;
+	font-family: 'Fira Code', Consolas, monospace;
+	font-size: 0.85rem;
+	line-height: 1.45;
+	text-align: left;
+	opacity: 0.88;
+	pointer-events: auto;
+}
 
-#status-notice {
-	margin: 0 100px;
-	line-height: 1.3;
-	visibility: visible;
-	padding: 4px 6px;
+#status-log-entry {
+	white-space: pre-wrap;
 }
 		</style>
 	</head>
 	<body>
-		<div
-			id="welcome-modal"
-			class="welcome-modal"
-			role="dialog"
-			aria-labelledby="welcome-modal-title"
-			aria-describedby="welcome-modal-description"
-			onclick="if (event.target === this) closeWelcomeModal(false)"
-		>
-			<div class="welcome-modal-content">
-				<h2 id="welcome-modal-title" class="welcome-modal-title">Important - Please read before continuing</h2>
-				<div id="welcome-modal-description">
-					<p>
-						The Godot Web Editor has some limitations compared to the native version.
-						Its main focus is education and experimentation;
-						<strong>it is not recommended for production</strong>.
-					</p>
-					<p>
-						Refer to the
-						<a
-							href="https://docs.godotengine.org/en/latest/tutorials/editor/using_the_web_editor.html"
-							target="_blank"
-							rel="noopener"
-						>Web editor documentation</a> for usage instructions and limitations.
-					</p>
-				</div>
-				<div id="welcome-modal-missing-description" style="display: none">
-					<p>
-						<strong>The following features required by the Godot Web Editor are missing:</strong>
-					</p>
-					<ul id="welcome-modal-missing-list">
-					</ul>
-					<p>
-						If you are self-hosting the web editor,
-						refer to
-						<a
-							href="https://docs.godotengine.org/en/latest/tutorials/export/exporting_for_web.html"
-							target="_blank"
-							rel="noopener"
-						>Exporting for the Web</a> for more information.
-					</p>
-				</div>
-				<div style="text-align: center">
-					<button id="welcome-modal-dismiss" class="btn" type="button" onclick="closeWelcomeModal(true)" style="margin-top: 1rem">
-						OK, don't show again
-					</button>
-				</div>
-			</div>
-		</div>
+		<!-- Welcome modal removed; we show only the loading bar. -->
 		<div id="tabs-buttons">
 			<button id="btn-tab-loader" class="btn tab-btn" onclick="showTab('loader')">Loader</button>
 			<button id="btn-tab-editor" class="btn tab-btn" disabled="disabled" onclick="showTab('editor')">Editor</button>
@@ -288,37 +288,7 @@ a:active {
 			<button id="btn-tab-update" class="btn tab-btn" style="display: none;">Update</button>
 		</div>
 		<div id="tabs">
-			<div id="tab-loader">
-				<div style="color: #e0e0e0;" id="persistence">
-					<br >
-					<img src="logo.svg" alt="Godot Engine logo" width="1024" height="414" style="width: auto; height: auto; max-width: min(85%, 50vh); max-height: 250px">
-					<br >
-					4.5.stable.official
-					<br >
-					<a href="releases/">Need an old version?</a>
-					<br >
-					<br >
-					<br >
-					<label for="videoMode" style="margin-right: 1rem">Video driver:</label>
-					<select id="videoMode">
-						<option value="" selected="selected">Auto</option>
-						<option value="opengl3">WebGL 2</option>
-					</select>
-					<br >
-					<br >
-					<label for="zip-file" style="margin-right: 1rem">Preload project ZIP:</label>
-					<input id="zip-file" type="file" name="files" style="margin-bottom: 1rem">
-					<br >
-					<a href="demo.zip">(Try this for example)</a>
-					<br >
-					<br >
-					<button id="startButton" class="btn" style="margin-bottom: 4rem; font-weight: 700">Start Godot editor</button>
-					<br >
-					<button class="btn" onclick="clearPersistence()" style="margin-bottom: 1.5rem">Clear persistent data</button>
-					<br >
-					<a href="https://docs.godotengine.org/en/latest/tutorials/editor/using_the_web_editor.html">Web editor documentation</a>
-				</div>
-			</div>
+			<div id="tab-loader" style="display: none;"></div>
 			<div id="tab-editor" style="display: none;">
 				<canvas id="editor-canvas" tabindex="1">
 					HTML5 canvas appears to be unsupported in the current browser.<br >
@@ -331,21 +301,18 @@ a:active {
 					Please try updating or use a different browser.
 				</canvas>
 			</div>
-			<div id="tab-status" style="display: none;">
-				<div id="status-progress" style="display: none;" oncontextmenu="event.preventDefault();">
-					<div id="status-progress-inner"></div>
+			<div id="tab-status">
+				<div id="status">
+					<div id="status-progress" style="display: none;" oncontextmenu="event.preventDefault();">
+						<div id="status-progress-label"></div>
+						<div id="status-progress-bar">
+							<div id="status-progress-inner"></div>
+						</div>
+					</div>
+					<div id="status-log" style="display: none;" oncontextmenu="event.preventDefault();">
+						<div id="status-log-entry"></div>
+					</div>
 				</div>
-				<div id="status-indeterminate" style="display: none;" oncontextmenu="event.preventDefault();">
-					<div></div>
-					<div></div>
-					<div></div>
-					<div></div>
-					<div></div>
-					<div></div>
-					<div></div>
-					<div></div>
-				</div>
-				<div id="status-notice" class="godot" style="display: none;"></div>
 			</div>
 		</div>
 		<script>
@@ -362,76 +329,30 @@ window.addEventListener('load', () => {
 		};
 		btn.style.display = '';
 	}
+	// Keep service worker registration minimal; no update UI.
 	if ('serviceWorker' in navigator) {
-		try {
-			navigator.serviceWorker.register('service.worker.js').then(function (reg) {
-				if (reg.waiting) {
-					notifyUpdate(reg.waiting);
-				}
-				reg.addEventListener('updatefound', function () {
-					const update = reg.installing;
-					update.addEventListener('statechange', function () {
-						if (update.state === 'installed') {
-							// It's a new install, claim and perform aggressive caching.
-							if (!reg.active) {
-								update.postMessage('claim');
-							} else {
-								notifyUpdate(update);
-							}
-						}
-					});
-				});
-			});
-		} catch (e) {
-			console.error('Error while registering service worker:', e);
-		}
+		try { navigator.serviceWorker.register('service.worker.js'); } catch (e) { console.error('SW register error:', e); }
 	}
 
 	const missing = Engine.getMissingFeatures({
 		threads: true,
 	});
+	// Only log missing feature errors; do not show modal UI
 	if (missing.length) {
-		// Display error dialog as threading support is required for the editor.
-		document.getElementById('startButton').disabled = 'disabled';
-		document.getElementById('welcome-modal-description').style.display = 'none';
-		document.getElementById('welcome-modal-missing-description').style.display = 'block';
-		document.getElementById('welcome-modal-dismiss').style.display = 'none';
-		const list = document.getElementById('welcome-modal-missing-list');
-		for (let i = 0; i < missing.length; i++) {
-			const node = document.createElement('li');
-			node.innerText = missing[i];
-			list.appendChild(node);
-		}
-	}
-
-	if (missing.length || localStorage.getItem('welcomeModalDismissed') !== 'true') {
-		document.getElementById('welcome-modal').style.display = 'block';
-		document.getElementById('welcome-modal-dismiss').focus();
+		console.error('Missing required features:', missing);
 	}
 
 	// Auto-start: preload template project and launch editor without user input.
 	// Hide the welcome modal for a seamless start when features are available.
-	if (!missing.length) {
-		// Ensure the modal won't be shown again and close it if currently visible.
-		localStorage.setItem('welcomeModalDismissed', 'true');
-		try {
-			if (typeof closeWelcomeModal === 'function') {
-				closeWelcomeModal(true);
-			}
-		} catch (e) {}
-		// Fetch template project zip and start the editor behind the loading screen.
-		fetch('tutor.zip').then(function (resp) {
-			if (!resp.ok) {
-				throw new Error('Failed to fetch tutor.zip');
-			}
-			return resp.arrayBuffer();
-		}).then(function (zipBuf) {
-			startEditor(zipBuf);
-		}).catch(function (e) {
-			console.error('Failed to auto-start with template project:', e);
-			// Leave the default UI if auto-start fails.
-		});
-	}
+	// Fetch template project zip and start the editor behind the loading screen.
+	fetch('tutor.zip').then(function (resp) {
+		if (!resp.ok) { throw new Error('Failed to fetch tutor.zip'); }
+		return resp.arrayBuffer();
+	}).then(function (zipBuf) {
+		startEditor(zipBuf);
+	}).catch(function (e) {
+		console.error('Failed to auto-start with template project:', e);
+	});
 });
 
 function closeWelcomeModal(dontShowAgain) { // eslint-disable-line no-unused-vars
@@ -446,7 +367,6 @@ function closeWelcomeModal(dontShowAgain) { // eslint-disable-line no-unused-var
 let editor = null;
 let game = null;
 let setStatusMode;
-let setStatusNotice;
 let video_driver = '';
 
 function clearPersistence() { // eslint-disable-line no-unused-vars
@@ -478,13 +398,18 @@ function clearPersistence() { // eslint-disable-line no-unused-vars
 
 function selectVideoMode() {
 	const select = document.getElementById('videoMode');
-	video_driver = select.selectedOptions[0].value;
+	if (select && select.selectedOptions && select.selectedOptions.length) {
+		video_driver = select.selectedOptions[0].value;
+	} else {
+		video_driver = '';
+	}
 }
 
 const tabs = [
 	document.getElementById('tab-loader'),
 	document.getElementById('tab-editor'),
 	document.getElementById('tab-game'),
+	document.getElementById('tab-status'),
 ];
 function showTab(name) {
 	tabs.forEach(function (elem) {
@@ -540,9 +465,50 @@ function startEditor(zip) {
 	let gameCanvas = document.getElementById('game-canvas');
 	const statusProgress = document.getElementById('status-progress');
 	const statusProgressInner = document.getElementById('status-progress-inner');
-	const statusIndeterminate = document.getElementById('status-indeterminate');
-	const statusNotice = document.getElementById('status-notice');
+	const statusProgressLabel = document.getElementById('status-progress-label');
+	const statusLog = document.getElementById('status-log');
+	const statusLogEntry = document.getElementById('status-log-entry');
 	const headerDiv = document.getElementById('tabs-buttons');
+
+	function appendStatusLog(message) {
+		if (!statusLog || !statusLogEntry) {
+			return;
+		}
+		const timestamp = new Date().toLocaleTimeString();
+		const line = document.createElement('div');
+		line.textContent = `[${timestamp}] ${message}`;
+		statusLogEntry.appendChild(line);
+		statusLog.style.display = '';
+		statusLog.scrollTop = statusLog.scrollHeight;
+	}
+
+	function clearStatusLog() {
+		if (!statusLogEntry) {
+			return;
+		}
+		while (statusLogEntry.firstChild) {
+			statusLogEntry.removeChild(statusLogEntry.firstChild);
+		}
+		if (statusLog) {
+			statusLog.style.display = 'none';
+		}
+	}
+
+	function updateProgress(current, total) {
+		if (total > 0) {
+			statusProgressInner.classList.remove('indeterminate');
+			statusProgressInner.style.width = `${(current / total) * 100}%`;
+			if (statusProgressLabel) {
+				statusProgressLabel.textContent = `Loading engine… ${Math.round((current / total) * 100)}%`;
+			}
+		} else {
+			statusProgressInner.classList.add('indeterminate');
+			statusProgressInner.style.width = '';
+			if (statusProgressLabel) {
+				statusProgressLabel.textContent = 'Preparing resources…';
+			}
+		}
+	}
 
 	let initializing = true;
 	let statusMode = 'hidden';
@@ -584,16 +550,6 @@ function startEditor(zip) {
 		from.parentNode.replaceChild(out, from);
 		lastScale = 0;
 		return out;
-	}
-
-	function animateStatusIndeterminate(ms) {
-		const i = Math.floor((ms / INDETERMINATE_STATUS_STEP_MS) % 8);
-		if (statusIndeterminate.children[i].style.borderTopColor === '') {
-			Array.prototype.slice.call(statusIndeterminate.children).forEach((child) => {
-				child.style.borderTopColor = '';
-			});
-			statusIndeterminate.children[i].style.borderTopColor = '#dfdfdf';
-		}
 	}
 
 	// Minimal ZIP extractor using the central directory and DecompressionStream (deflate-raw).
@@ -693,22 +649,10 @@ function startEditor(zip) {
 		if (statusMode === mode || !initializing) {
 			return;
 		}
-		[statusProgress, statusIndeterminate, statusNotice].forEach((elem) => {
-			elem.style.display = 'none';
-		});
-		animationCallbacks = animationCallbacks.filter(function (value) {
-			return (value !== animateStatusIndeterminate);
-		});
+		statusProgress.style.display = 'none';
 		switch (mode) {
 		case 'progress':
-			statusProgress.style.display = 'block';
-			break;
-		case 'indeterminate':
-			statusIndeterminate.style.display = 'block';
-			animationCallbacks.push(animateStatusIndeterminate);
-			break;
-		case 'notice':
-			statusNotice.style.display = 'block';
+			statusProgress.style.display = 'flex';
 			break;
 		case 'hidden':
 			break;
@@ -716,17 +660,6 @@ function startEditor(zip) {
 			throw new Error('Invalid status mode');
 		}
 		statusMode = mode;
-	};
-
-	setStatusNotice = function (text) {
-		while (statusNotice.lastChild) {
-			statusNotice.removeChild(statusNotice.lastChild);
-		}
-		const lines = text.split('\n');
-		lines.forEach((line) => {
-			statusNotice.appendChild(document.createTextNode(line));
-			statusNotice.appendChild(document.createElement('br'));
-		});
 	};
 
 	const gameConfig = {
@@ -798,18 +731,7 @@ function startEditor(zip) {
 	const editorConfig = {
 		'unloadAfterInit': false,
 		'onProgress': function progressFunction(current, total) {
-			if (total > 0) {
-				statusProgressInner.style.width = `${(current / total) * 100}%`;
-				setStatusMode('progress');
-				if (current === total) {
-					// wait for progress bar animation
-					setTimeout(() => {
-						setStatusMode('indeterminate');
-					}, 100);
-				}
-			} else {
-				setStatusMode('indeterminate');
-			}
+			updateProgress(current, total);
 		},
 		'canvas': editorCanvas,
 		'canvasResizePolicy': 0,
@@ -828,24 +750,35 @@ function startEditor(zip) {
 
 	function displayFailureNotice(err) {
 		console.error(err);
-		if (err instanceof Error) {
-			setStatusNotice(err.message);
-		} else if (typeof err === 'string') {
-			setStatusNotice(err);
-		} else {
-			setStatusNotice('An unknown error occurred.');
+		statusProgressInner.classList.remove('indeterminate');
+		statusProgressInner.style.width = '100%';
+		if (statusProgressLabel) {
+			statusProgressLabel.textContent = (err instanceof Error) ? err.message : String(err);
 		}
-		setStatusMode('notice');
+		appendStatusLog(`Error: ${(err instanceof Error) ? err.message : err}`);
+		setStatusMode('hidden');
 		initializing = false;
 	}
 
 	if (!Engine.isWebGLAvailable()) {
 		displayFailureNotice('WebGL not available');
 	} else {
-		setStatusMode('indeterminate');
+		clearStatusLog();
+		setStatusMode('progress');
+		appendStatusLog('Initializing engine runtime…');
+		if (statusProgressLabel) {
+			statusProgressLabel.textContent = 'Loading Godot engine…';
+		}
+		updateProgress(0, 0);
 		editor.init('godot.editor').then(function () {
+			appendStatusLog('Engine runtime ready.');
 			let projectRootPromise = Promise.resolve(null);
 			if (zip) {
+				appendStatusLog('Extracting template project archive…');
+				if (statusProgressLabel) {
+					statusProgressLabel.textContent = 'Extracting template project…';
+				}
+				statusProgressInner.classList.add('indeterminate');
 				projectRootPromise = extractZipToFS(zip, '/home/web_user/autoload');
 			}
 			try {
@@ -858,11 +791,25 @@ function startEditor(zip) {
 				selectVideoMode();
 				showTab('editor');
 				setLoaderEnabled(false);
+				statusProgressInner.classList.add('indeterminate');
+				if (projectRoot) {
+					appendStatusLog(`Template unpacked to ${projectRoot}.`);
+				}
+				appendStatusLog('Starting Godot editor…');
+				if (statusProgressLabel) {
+					statusProgressLabel.textContent = projectRoot ? 'Starting editor with template…' : 'Starting project manager…';
+				}
 				const args = projectRoot ? ['--editor', '--path', projectRoot, '--single-window'] : ['--project-manager', '--single-window'];
 				if (video_driver) {
 					args.push('--rendering-driver', video_driver);
 				}
 				editor.start({ 'args': args, 'persistentDrops': !projectRoot }).then(function () {
+					statusProgressInner.classList.remove('indeterminate');
+					statusProgressInner.style.width = '100%';
+					if (statusProgressLabel) {
+						statusProgressLabel.textContent = 'Ready';
+					}
+					appendStatusLog('Editor started successfully.');
 					setStatusMode('hidden');
 					initializing = false;
 				});
@@ -871,23 +818,7 @@ function startEditor(zip) {
 	}
 }
 
-function preloadZip(target) {
-	return new Promise(function (resolve, reject) {
-		if (target.files.length > 0) {
-			target.files[0].arrayBuffer().then(function (data) {
-				resolve(data);
-			});
-		} else {
-			resolve();
-		}
-	});
-}
-
-document.getElementById('startButton').onclick = function () {
-	preloadZip(document.getElementById('zip-file')).then(function (zip) {
-		startEditor(zip);
-	});
-};
+// Manual preload UI removed; autostart is handled on load.
 		</script>
 	</body>
 </html>
