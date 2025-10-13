@@ -460,6 +460,35 @@ function closeEditor() { // eslint-disable-line no-unused-vars
 function startEditor(zip) {
 	const INDETERMINATE_STATUS_STEP_MS = 100;
 	const persistentPaths = ['/home/web_user'];
+	const CUSTOM_THEME_SOURCE = 'editor_theme_high_ppi.tres';
+	const CUSTOM_THEME_FS_PATH = '/home/web_user/.config/godot/themes/editor_theme_high_ppi.tres';
+	const EDITOR_SETTINGS_FS_PATH = '/home/web_user/.config/godot/editor_settings-4.5.tres';
+	const SETTINGS_SOURCE = 'editor_settings.tres';
+	const textEncoder = new TextEncoder();
+
+	function installCustomThemeTemplate() {
+		const themePromise = fetch(CUSTOM_THEME_SOURCE).then(function (resp) {
+			if (!resp.ok) {
+				throw new Error('Failed to fetch custom editor theme template');
+			}
+			return resp.arrayBuffer();
+		}).then(function (buffer) {
+			editor.copyToFS(CUSTOM_THEME_FS_PATH, new Uint8Array(buffer));
+		});
+		const settingsPromise = fetch(SETTINGS_SOURCE).then(function (resp) {
+			if (!resp.ok) {
+				throw new Error('Failed to fetch editor settings template');
+			}
+			return resp.text();
+		}).then(function (text) {
+			const normalized = text.replace(/\r\n/g, '\n');
+			const updated = normalized.replace(/interface\/theme\/custom_theme = "[^"]*"/m, 'interface/theme/custom_theme = "' + CUSTOM_THEME_FS_PATH + '"');
+			editor.copyToFS(EDITOR_SETTINGS_FS_PATH, textEncoder.encode(updated));
+		});
+		return Promise.all([themePromise, settingsPromise]).catch(function (err) {
+			console.warn('Skipping custom editor theme setup:', err);
+		});
+	}
 
 	let editorCanvas = document.getElementById('editor-canvas');
 	let gameCanvas = document.getElementById('game-canvas');
@@ -773,6 +802,7 @@ function startEditor(zip) {
 		editor.init('godot.editor').then(function () {
 			appendStatusLog('Engine runtime ready.');
 			let projectRootPromise = Promise.resolve(null);
+			const themeSetupPromise = installCustomThemeTemplate();
 			if (zip) {
 				appendStatusLog('Extracting template project archive…');
 				if (statusProgressLabel) {
@@ -787,7 +817,8 @@ function startEditor(zip) {
 			} catch (e) {
 				// File exists
 			}
-			projectRootPromise.then(function (projectRoot) {
+			Promise.all([projectRootPromise, themeSetupPromise]).then(function (results) {
+				const projectRoot = results[0];
 				selectVideoMode();
 				showTab('editor');
 				setLoaderEnabled(false);
