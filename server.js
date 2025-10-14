@@ -5,7 +5,31 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 8080;
 const publishProjectTargetPath = '/api/publish_project';
-const publishProjectOrigin = 'http://127.0.0.1:8000';
+const checkProjectTargetPath = '/api/check_project';
+const apiProxyOrigin = 'http://127.0.0.1:8000';
+
+const createApiProxy = (targetPath, routeLabel) => createProxyMiddleware({
+  target: apiProxyOrigin,
+  changeOrigin: true,
+  pathRewrite: (path, req) => {
+    const originalPath = req.originalUrl;
+    const queryIndex = originalPath.indexOf('?');
+    if (queryIndex === -1) {
+      return targetPath;
+    }
+    return `${targetPath}${originalPath.slice(queryIndex)}`;
+  },
+  onProxyRes: (proxyRes) => {
+    proxyRes.headers['access-control-allow-origin'] = '*';
+  },
+  onError: (err, req, res) => {
+    console.error(`Failed to proxy ${routeLabel} request:`, err);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+    }
+    res.end(JSON.stringify({ error: 'Upstream request failed' }));
+  },
+});
 
 // Set COOP/COEP/CORP headers to enable cross-origin isolation (required for threads/SharedArrayBuffer)
 app.use((req, res, next) => {
@@ -15,33 +39,17 @@ app.use((req, res, next) => {
   next();
 });
 
-app.options('/api/publish_project', (req, res) => {
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+const handleCorsPreflight = (methods) => (req, res) => {
+  res.setHeader('Access-Control-Allow-Methods', `${methods}, OPTIONS`);
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.sendStatus(204);
-});
+};
 
-app.use('/api/publish_project', createProxyMiddleware({
-  target: publishProjectOrigin,
-  changeOrigin: true,
-  pathRewrite: (path) => {
-    const queryIndex = path.indexOf('?');
-    if (queryIndex === -1) {
-      return publishProjectTargetPath;
-    }
-    return `${publishProjectTargetPath}${path.slice(queryIndex)}`;
-  },
-  onProxyRes: (proxyRes) => {
-    proxyRes.headers['access-control-allow-origin'] = '*';
-  },
-  onError: (err, req, res) => {
-    console.error('Failed to proxy /api/publish_project request:', err);
-    if (!res.headersSent) {
-      res.writeHead(502, { 'Content-Type': 'application/json' });
-    }
-    res.end(JSON.stringify({ error: 'Failed to publish project' }));
-  },
-}));
+app.options('/api/publish_project', handleCorsPreflight('POST'));
+app.options('/api/check_project', handleCorsPreflight('GET, POST'));
+
+app.use('/api/publish_project', createApiProxy(publishProjectTargetPath, '/api/publish_project'));
+app.use('/api/check_project', createApiProxy(checkProjectTargetPath, '/api/check_project'));
 
 // Serve all static files from the project directory
 app.use(express.static(path.join(__dirname, '.'), {
