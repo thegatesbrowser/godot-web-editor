@@ -14,7 +14,7 @@ const OFFLINE_URL = 'offline.html';
 const ENSURE_CROSSORIGIN_ISOLATION_HEADERS = true;
 // Files that will be cached on load.
 /** @type {string[]} */
-const CACHED_FILES = ["godot.editor.html", "offline.html", "godot.editor.js", "godot.editor.audio.worklet.js", "godot.editor.audio.position.worklet.js", "logo.svg", "favicon.png", "tutor.zip"];
+const CACHED_FILES = ["godot.editor.wasm", "godot.editor.html", "offline.html", "godot.editor.js", "godot.editor.audio.worklet.js", "godot.editor.audio.position.worklet.js", "logo.svg", "favicon.png", "template.zip"];
 // Files that we might not want the user to preload, and will only be cached on first load.
 /** @type {string[]} */
 const CACHEABLE_FILES = ["godot.editor.wasm"];

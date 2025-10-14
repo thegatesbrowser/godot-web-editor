@@ -299,6 +299,91 @@ a:active {
 	white-space: pre-wrap;
 }
 		</style>
+		<script>
+(function () {
+'use strict';
+const KEY = 'thegates_user_id';
+
+function getFromCookies(name) {
+	const prefix = name + '=';
+	const parts = document.cookie ? document.cookie.split('; ') : [];
+	for (let i = 0; i < parts.length; i++) {
+		if (parts[i].startsWith(prefix)) {
+			return parts[i].slice(prefix.length);
+		}
+	}
+	return null;
+}
+
+function setCookie(name, value) {
+	const expires = 'Fri, 31 Dec 9999 23:59:59 GMT';
+	document.cookie = name + '=' + value + '; path=/; expires=' + expires + '; SameSite=Lax';
+}
+
+function getFromStorage() {
+    try {
+        const id = localStorage.getItem(KEY);
+        if (id) return id;
+    } catch (e) {}
+    return getFromCookies(KEY);
+}
+
+let currentId = null;
+
+function setId(id) {
+	if (!id || typeof id !== 'string') return;
+	currentId = id;
+	try { localStorage.setItem(KEY, id); } catch (e) {}
+	try { setCookie(KEY, id); } catch (e) {}
+}
+
+async function fetchServerId() {
+	try {
+		const resp = await fetch('/api/create_publishing_user_id', { method: 'POST', cache: 'no-store' });
+		if (resp.ok) {
+			const contentType = resp.headers.get('content-type') || '';
+			let raw = '';
+			if (contentType.includes('application/json')) {
+				try {
+					const json = await resp.json();
+					raw = (json && (json.user_id || json.id || '')) + '';
+				} catch (e) {
+					// Fallback to text if JSON parse fails
+					raw = await resp.text();
+				}
+			} else {
+				raw = await resp.text();
+			}
+			const trimmed = (raw || '').trim();
+			const match = trimmed.match(/user_[0-9]+/);
+			if (match) {
+				const id = match[0];
+				setId(id);
+				return id;
+			}
+		}
+	} catch (e) {
+		// ignore network errors and fall back
+	}
+	return null;
+}
+
+(function init() {
+    // Use cached ID synchronously if present
+    const cached = getFromStorage();
+    if (cached) {
+        setId(cached);
+        return;
+    }
+    // Otherwise request one from the server, and store immediately when received
+    fetchServerId();
+})();
+
+// Expose for GDScript via JavaScriptBridge.eval('window.getTheGatesUserId()')
+window.getTheGatesUserId = function () { return currentId || getFromStorage() || ''; };
+
+})();
+		</script>
 	</head>
 	<body>
 		<!-- Welcome modal removed; we show only the loading bar. -->

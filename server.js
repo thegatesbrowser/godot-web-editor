@@ -5,7 +5,8 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 8080;
 const publishProjectTargetPath = '/api/publish_project';
-const checkProjectTargetPath = '/api/check_project';
+const getPublishedProjectTargetPath = '/api/get_published_project';
+const createPublishingUserIdTargetPath = '/api/create_publishing_user_id';
 const apiProxyOrigin = 'http://127.0.0.1:8000';
 
 const createApiProxy = (targetPath, routeLabel) => createProxyMiddleware({
@@ -46,10 +47,12 @@ const handleCorsPreflight = (methods) => (req, res) => {
 };
 
 app.options('/api/publish_project', handleCorsPreflight('POST'));
-app.options('/api/check_project', handleCorsPreflight('GET, POST'));
+app.options('/api/get_published_project', handleCorsPreflight('GET, POST'));
+app.options('/api/create_publishing_user_id', handleCorsPreflight('POST'));
 
 app.use('/api/publish_project', createApiProxy(publishProjectTargetPath, '/api/publish_project'));
-app.use('/api/check_project', createApiProxy(checkProjectTargetPath, '/api/check_project'));
+app.use('/api/get_published_project', createApiProxy(getPublishedProjectTargetPath, '/api/get_published_project'));
+app.use('/api/create_publishing_user_id', createApiProxy(createPublishingUserIdTargetPath, '/api/create_publishing_user_id'));
 
 // Serve all static files from the project directory
 app.use(express.static(path.join(__dirname, '.'), {
