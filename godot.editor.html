@@ -391,6 +391,8 @@ let editor = null;
 let game = null;
 let setStatusMode;
 let video_driver = '';
+const TEMPLATE_DEST_ROOT = '/home/web_user/autoload';
+const TEMPLATE_PROJECT_ROOT_KEY = 'godotTemplateProjectRoot';
 
 function clearPersistence() { // eslint-disable-line no-unused-vars
 	function deleteDB(path) {
@@ -602,6 +604,31 @@ function startEditor(zip) {
 		from.parentNode.replaceChild(out, from);
 		lastScale = 0;
 		return out;
+	}
+
+	function resolveCachedProjectRoot() {
+		const cached = window.localStorage.getItem(TEMPLATE_PROJECT_ROOT_KEY);
+		if (!cached) {
+			return null;
+		}
+		try {
+			const parsed = JSON.parse(cached);
+			if (parsed.destRoot !== TEMPLATE_DEST_ROOT || typeof parsed.projectRoot !== 'string') {
+				return null;
+			}
+			return parsed;
+		} catch (err) {
+			console.warn('Failed to parse cached template metadata:', err);
+			return null;
+		}
+	}
+
+	function persistCachedProjectRoot(metadata) {
+		try {
+			window.localStorage.setItem(TEMPLATE_PROJECT_ROOT_KEY, JSON.stringify(metadata));
+		} catch (err) {
+			console.warn('Failed to persist template metadata:', err);
+		}
 	}
 
 	// Minimal ZIP extractor using the central directory and DecompressionStream (deflate-raw).
@@ -826,13 +853,20 @@ function startEditor(zip) {
 			appendStatusLog('Engine runtime ready.');
 			let projectRootPromise = Promise.resolve(null);
 			const themeSetupPromise = installCustomThemeTemplate();
-			if (zip) {
+			const cachedProject = resolveCachedProjectRoot();
+			if (cachedProject) {
+				appendStatusLog('Template project already available, skipping extraction.');
+				projectRootPromise = Promise.resolve(cachedProject.projectRoot);
+			} else if (zip) {
 				appendStatusLog('Extracting template project archive…');
 				if (statusProgressLabel) {
 					statusProgressLabel.textContent = 'Extracting template project…';
 				}
 				statusProgressInner.classList.add('indeterminate');
-				projectRootPromise = extractZipToFS(zip, '/home/web_user/autoload');
+				projectRootPromise = extractZipToFS(zip, TEMPLATE_DEST_ROOT).then(function (projectRoot) {
+					persistCachedProjectRoot({ destRoot: TEMPLATE_DEST_ROOT, projectRoot: projectRoot });
+					return projectRoot;
+				});
 			}
 			try {
 				// Avoid user creating project in the persistent root folder.
