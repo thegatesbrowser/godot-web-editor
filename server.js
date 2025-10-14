@@ -54,6 +54,11 @@ app.use('/api/publish_project', createApiProxy(publishProjectTargetPath, '/api/p
 app.use('/api/get_published_project', createApiProxy(getPublishedProjectTargetPath, '/api/get_published_project'));
 app.use('/api/create_publishing_user_id', createApiProxy(createPublishingUserIdTargetPath, '/api/create_publishing_user_id'));
 
+// Serve godot.editor.html as the index page
+app.get(['/', '/index.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'godot.editor.html'));
+});
+
 // Serve all static files from the project directory
 app.use(express.static(path.join(__dirname, '.'), {
   setHeaders: (res, filePath) => {
