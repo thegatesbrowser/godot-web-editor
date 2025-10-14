@@ -120,3 +120,6 @@ Desktop.ini
 *.tar.gz
 *.7z
 *.rar
+
+# nohup.out
+nohup.out
