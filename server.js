@@ -9,9 +9,19 @@ const getPublishedProjectTargetPath = '/api/get_published_project';
 const createPublishingUserIdTargetPath = '/api/create_publishing_user_id';
 const apiProxyOrigin = 'http://127.0.0.1:8000';
 
+// Simple HTTP request logging
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    console.log(`${req.method} ${req.originalUrl} -> ${res.statusCode} ${Date.now() - start}ms`);
+  });
+  next();
+});
+
 const createApiProxy = (targetPath, routeLabel) => createProxyMiddleware({
   target: apiProxyOrigin,
   changeOrigin: true,
+  logLevel: 'info',
   pathRewrite: (path, req) => {
     const originalPath = req.originalUrl;
     const queryIndex = originalPath.indexOf('?');
