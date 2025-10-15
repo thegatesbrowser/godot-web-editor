@@ -450,17 +450,9 @@ window.addEventListener('load', () => {
 		console.error('Missing required features:', missing);
 	}
 
-	// Auto-start: preload template project and launch editor without user input.
-	// Hide the welcome modal for a seamless start when features are available.
-	// Fetch template project zip and start the editor behind the loading screen.
-	fetch('template.zip').then(function (resp) {
-		if (!resp.ok) { throw new Error('Failed to fetch template.zip'); }
-		return resp.arrayBuffer();
-	}).then(function (zipBuf) {
-		startEditor(zipBuf);
-	}).catch(function (e) {
-		console.error('Failed to auto-start with template project:', e);
-	});
+	// Auto-start: start the editor immediately so the loading bar is visible first.
+	// Template ZIP will be downloaded with progress inside startEditor.
+	startEditor();
 });
 
 function closeWelcomeModal(dontShowAgain) { // eslint-disable-line no-unused-vars
@@ -633,19 +625,68 @@ function startEditor(zip) {
 		}
 	}
 
-	function updateProgress(current, total) {
-		if (total > 0) {
-			statusProgressInner.classList.remove('indeterminate');
-			statusProgressInner.style.width = `${(current / total) * 100}%`;
-			if (statusProgressLabel) {
-				statusProgressLabel.textContent = `Loading engine… ${Math.round((current / total) * 100)}%`;
+	// Aggregate progress from engine (WASM/assets) and template ZIP download.
+	let engineProgressCurrent = 0;
+	let engineProgressTotal = 0;
+	let zipProgressLoaded = 0;
+	let zipProgressTotal = 0; // 0 if unknown
+	let zipNeeded = false;
+
+	function setCompositeProgressLabel(prefix, percent) {
+		if (statusProgressLabel) {
+			statusProgressLabel.textContent = `${prefix} ${Math.round(percent)}%`;
+		}
+	}
+
+	function updateCompositeProgress(prefix) {
+		// Compute engine fraction
+		const engineFrac = (engineProgressTotal > 0) ? (engineProgressCurrent / engineProgressTotal) : 0;
+		// Compute ZIP fraction (if known)
+		const zipFracKnown = (zipProgressTotal > 0) ? (zipProgressLoaded / zipProgressTotal) : 0;
+		// Weights: favor engine = 60%, zip = 40% when zip is needed; else 100% engine
+		let composite = engineFrac;
+		if (zipNeeded) {
+			const engineWeight = 0.6;
+			const zipWeight = 0.4;
+			const zipFrac = (zipProgressTotal > 0) ? zipFracKnown : 0; // unknown length -> contribute 0 until done
+			composite = (engineFrac * engineWeight) + (zipFrac * zipWeight);
+		}
+		statusProgressInner.classList.remove('indeterminate');
+		statusProgressInner.style.width = `${Math.max(3, composite * 100)}%`;
+		setCompositeProgressLabel(prefix, composite * 100);
+	}
+
+	async function fetchTemplateZipWithProgress() {
+		zipNeeded = true;
+		try {
+			const resp = await fetch('template.zip', { cache: 'no-store' });
+			if (!resp.ok || !resp.body) {
+				throw new Error('Failed to fetch template.zip');
 			}
-		} else {
-			statusProgressInner.classList.add('indeterminate');
-			statusProgressInner.style.width = '';
-			if (statusProgressLabel) {
-				statusProgressLabel.textContent = 'Preparing resources…';
+			zipProgressTotal = parseInt(resp.headers.get('content-length') || '0', 10) || 0;
+			const reader = resp.body.getReader();
+			const chunks = [];
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				if (value && value.length) {
+					chunks.push(value);
+					zipProgressLoaded += value.length;
+					updateCompositeProgress(zipProgressTotal ? 'Downloading engine and template…' : 'Downloading engine…');
+				}
 			}
+			// Concat chunks
+			let totalLen = 0;
+			for (const c of chunks) totalLen += c.length;
+			const out = new Uint8Array(totalLen);
+			let offset = 0;
+			for (const c of chunks) { out.set(c, offset); offset += c.length; }
+			return out.buffer;
+		} catch (e) {
+			appendStatusLog('Template download failed; starting without template.');
+			console.error(e);
+			zipNeeded = false;
+			return null;
 		}
 	}
 
@@ -895,7 +936,9 @@ function startEditor(zip) {
 	const editorConfig = {
 		'unloadAfterInit': false,
 		'onProgress': function progressFunction(current, total) {
-			updateProgress(current, total);
+			engineProgressCurrent = current;
+			engineProgressTotal = total;
+			updateCompositeProgress(zipNeeded ? 'Downloading engine and template…' : 'Loading engine…');
 		},
 		'canvas': editorCanvas,
 		'canvasResizePolicy': 0,
@@ -933,24 +976,38 @@ function startEditor(zip) {
 		if (statusProgressLabel) {
 			statusProgressLabel.textContent = 'Loading Godot engine…';
 		}
-		updateProgress(0, 0);
+		statusProgressInner.classList.add('indeterminate');
+		statusProgressInner.style.width = '';
+
+		// Determine whether we need to download the template first based on cache.
+		const cachedProject = resolveCachedProjectRoot();
+		let zipDownloadPromise = Promise.resolve(null);
+		if (!cachedProject && !zip) {
+			zipDownloadPromise = fetchTemplateZipWithProgress();
+		}
+
 		editor.init('godot.editor').then(function () {
 			appendStatusLog('Engine runtime ready.');
 			let projectRootPromise = Promise.resolve(null);
 			const themeSetupPromise = installCustomThemeTemplate();
-			const cachedProject = resolveCachedProjectRoot();
-			if (cachedProject) {
+			const cached = cachedProject;
+			if (cached) {
 				appendStatusLog('Template project already available, skipping extraction.');
-				projectRootPromise = Promise.resolve(cachedProject.projectRoot);
-			} else if (zip) {
-				appendStatusLog('Extracting template project archive…');
-				if (statusProgressLabel) {
-					statusProgressLabel.textContent = 'Extracting template project…';
-				}
-				statusProgressInner.classList.add('indeterminate');
-				projectRootPromise = extractZipToFS(zip, TEMPLATE_DEST_ROOT).then(function (projectRoot) {
-					persistCachedProjectRoot({ destRoot: TEMPLATE_DEST_ROOT, projectRoot: projectRoot });
-					return projectRoot;
+				projectRootPromise = Promise.resolve(cached.projectRoot);
+			} else if (zip || zipDownloadPromise) {
+				appendStatusLog('Preparing template project archive…');
+				const zipBufferPromise = zip ? Promise.resolve(zip) : zipDownloadPromise;
+				projectRootPromise = zipBufferPromise.then(function (zipBuf) {
+					if (!zipBuf) { return null; }
+					appendStatusLog('Extracting template project archive…');
+					if (statusProgressLabel) {
+						statusProgressLabel.textContent = 'Extracting template project…';
+					}
+					statusProgressInner.classList.add('indeterminate');
+					return extractZipToFS(zipBuf, TEMPLATE_DEST_ROOT).then(function (projectRoot) {
+						persistCachedProjectRoot({ destRoot: TEMPLATE_DEST_ROOT, projectRoot: projectRoot });
+						return projectRoot;
+					});
 				});
 			}
 			try {
